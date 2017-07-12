@@ -23,11 +23,15 @@ def branch(x, C):
     
     Parameters
     ----------
-    x
-    C
+    x: int
+        node index
+    C: dict
+        dict of children for all nodes
 
     Returns
     -------
+    b: list
+        List of children in branch traversal starting at x.
 
     """
     b = [x]
@@ -35,8 +39,50 @@ def branch(x, C):
         b.extend([i for i in branch(c, C)])
     return b
 
+def calculate_heights(roots, children_dict):
+    """
+    
+    Parameters
+    ----------
+    roots: set
+        Set of root nodes as starting points for height counting
+    children_dict: dict 
+        dict of children for all nodes
 
-def full_node_classification(G):
+    Returns
+    -------
+    height: dict
+        height values for all tree-nodes and roots
+
+    """
+    height = dict()
+
+    Hs = list()
+    Hs.append(roots)
+    Ws = list()
+    Ws.append(roots)
+
+    i = 0
+    while len(Hs[i]) != 0:
+        new_H = set()
+        for x in Hs[i]:
+            new_H.update(children_dict[x] - Ws[i])
+            # save the height value
+            height[x] = i
+        Hs.append(new_H)
+
+        new_W = set()
+        for l in Ws:
+            new_W.update(l)
+        Ws.append(new_W)
+
+        i += 1
+
+    return height
+
+
+
+def full_node_classification(G, debug=False):
     """
     procedure which does the full node classification of a networkx graph G
     
@@ -44,140 +90,114 @@ def full_node_classification(G):
     ----------
     G: networkx.classes.graph.Graph
         Graph instance from networkx
+    debug: boolean
+        If true, give additional output for debugging.
 
     Returns
     -------
-    graph_list: list
-        list of all graphs for each iteration step
-    non_roots: list
+    tree_nodes: list
         list of non-root nodes in trees
     roots: list
         list of root nodes
     bulk: list
         list of nodes not in tree-shaped parts
-    branch_dict: dict 
-        dict of branches for all nodes
-    children_dict: dict 
-        dict of children for all nodes
-    parents_dict: dict
-        dict of parents for all tree-nodes and roots
     depth: dict
         dict of depth levels for all tree-nodes and roots
     height: dict
         dict of heights for all nodes
-    branch_sizes: dict
+    nodes_per_level: list (optional)
+        List of sets of nodes considered in each level of the iteration.
+        The subgraph for each level is induced by the corresponding node set.
+    branch_dict: dict (optional)
+        dict of branches for all nodes
+    children_dict: dict (optional)
+        dict of children for all nodes
+    parents_dict: dict (optional)
+        dict of parents for all tree-nodes and roots
+    branch_sizes: dict (optional)
         dict of branch sizes for all nodes
 
     """
 
-    # return values
-    graph_list = list() # 0 
+    tree_nodes = set()
+    parents_dict = dict()
+    depth = dict()
 
-    non_roots = set()  # 1
-    roots = set()  # 2
-    bulk = set()  # 3
-    
-    branch_dict = dict()  # 4
-    children_dict = dict()  # 5
-    parents_dict = dict()  # 6
-    
-    depth = dict()  # 7
-    height = dict()    # 8
-    branch_sizes = dict()   # 9
-    
-    # special case for tree graphs with odd diameter
+    #### take care of special case for tree graphs with odd diameter
     maxIter = np.infty
     if is_tree(G):
         diam = diameter(G)
         if diam % 2 == 1:
             maxIter = (diam - 1) / 2
 
-
-    #### Identification of non-root nodes, parents, children, branches, and depths
-
     # list of nodes for each level
-    Vs = list()
-    Vs.append( set(G.nodes()) )
+    nodes_per_level = list()
+    nodes_per_level.append(set(G.nodes()))
+
     # list of leaves for each level
-    Ds = list()
-    # initialize branch, children and depth dicts
-    branch_dict = { x:list() for x in Vs[0] }
-    children_dict = { x:list() for x in Vs[0] }
-    # iteration step    
+    leaves_per_level = list()
+
+    # initialize branch, children dicts
+    branch_dict = {x: list() for x in nodes_per_level[0]}
+    children_dict = {x: set() for x in nodes_per_level[0]}
+
+    #### iteration
     lvl = 0
     while True:
         # induced subgraph
-        graph = subgraph(G, nbunch=Vs[lvl])
+        graph = subgraph(G, nbunch=nodes_per_level[lvl])
 
         # find all leaves of current level
-        Ds.append( set( [ x for x, deg in degree(graph, Vs[lvl]).items() if deg==1] ) )
+        leaves_per_level.append(set([x for x, deg in degree(graph, nodes_per_level[lvl]).items() if deg==1]))
 
         # check if leaves not empty
-        if (len(Ds[lvl]) == 0) or (lvl == maxIter):
+        if (len(leaves_per_level[lvl]) == 0) or (lvl == maxIter):
             break
         # continue if leaves present
         else:
             # define nodes and graphs of next level
-            Vs.append( Vs[lvl] - Ds[lvl] )
+            nodes_per_level.append( nodes_per_level[lvl] - leaves_per_level[lvl] )
 
             # add leaves to non-root nodes
-            non_roots.update(Ds[lvl])
+            tree_nodes.update(leaves_per_level[lvl])
 
-            # calculate further measures
-            for x in Ds[lvl]:
+            # update list of parents
+            parents_dict.update({x: neighbors(graph, x)[0] for x in leaves_per_level[lvl]})
+
+            for x in leaves_per_level[lvl]:
                 # add leaves to parent"s list of children
-                parents_dict[x] = neighbors(graph, x)[0]
-                children_dict[parents_dict[x]].append(x)
-                # determine branch for each removed leave
+                children_dict[parents_dict[x]].add(x)
+                # determine branch for each removed leaf
                 branch_dict[x] = branch(x, children_dict)
-                # save depth of each leave
+                # save depth of each leaf
                 depth[x] = lvl
             # increase level counter
             lvl+=1
-    
-    #### Identification of root nodes
-    #determine all root nodes
-    roots = set([ parents_dict[x] for x in non_roots]) - non_roots
 
-    #determine branches and depth levels of roots
+    #### determine all root nodes
+    roots = set(map(parents_dict.get, tree_nodes)) - tree_nodes
+
+    #### determine branches and depth levels of roots
     for r in roots:
         # determine branch for roots
         branch_dict[r] = branch(r, children_dict)
         # calculate depth of root
-        depth[r] = 1 + max([ depth[x] for x in children_dict[r] ])
-             
-    #calculate branch sizes for all nodes
+        depth[r] = 1 + max([depth[x] for x in children_dict[r]])
+
+    #### calculate branch sizes for all nodes
     branch_sizes = {x: len(branch) for x, branch in branch_dict.items()}
     
     #### Identification of heights (this implementation is still a bit clumsy)
-    Hs = list()
-    Hs.append(roots)
-    Ws = list()
-    Ws.append(roots)
-    i = 0 
-    while len(Hs[i]) != 0:
-        Hn = list()
-        for x in Hs[i]:
-            for c in children_dict[x]:
-                if c not in Ws[i]:
-                    Hn.append(c)
-            # save the height value
-            height[x]=i
-        Hs.append( Hn )
-        
-        Wn = list()
-        for l in Ws:
-            for x in l:
-                Wn.append(x)
-        Ws.append( Wn )
-    
-        i+=1
+    height = calculate_heights(roots, children_dict)
         
     #### Identification of non-Tree nodes
-    bulk = Vs[0] - roots - non_roots
-    
-    # return all determined values
-    return list(non_roots), list(roots), list(bulk), branch_dict, children_dict, parents_dict, depth, height, branch_sizes
+    bulk = nodes_per_level[0] - roots - tree_nodes
+
+    if debug:
+        return list(tree_nodes), list(roots), list(bulk), depth, height, nodes_per_level, branch_dict, children_dict, parents_dict, branch_sizes
+    else:
+        return list(tree_nodes), list(roots), list(bulk), depth, height
+
 
 
 def node_categories(G, denseThres=5):
@@ -200,7 +220,7 @@ def node_categories(G, denseThres=5):
         
 
     """
-    N, R, X, B, C, p, delta, eta, beta = full_node_classification(G)
+    N, R, X, delta, eta = full_node_classification(G, debug=False)
     
     avndeg = average_neighbor_degree(G)
     cat = dict()
