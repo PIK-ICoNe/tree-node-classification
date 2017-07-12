@@ -73,9 +73,9 @@ def full_node_classification(G):
     # return values
     graph_list = list() # 0 
 
-    non_roots = list()  # 1 
-    roots = list()  # 2
-    bulk = list()  # 3
+    non_roots = set()  # 1
+    roots = set()  # 2
+    bulk = set()  # 3
     
     branch_dict = dict()  # 4
     children_dict = dict()  # 5
@@ -97,7 +97,7 @@ def full_node_classification(G):
     graph_list.append( G.copy() )
     # list of nodes for each level
     Vs = list()
-    Vs.append( sorted(G.nodes()) )
+    Vs.append( set(G.nodes()) )
     # list of leaves for each level
     Ds = list()
     # initialize branch, children and depth dicts
@@ -107,19 +107,21 @@ def full_node_classification(G):
     lvl = 0
     while True:
         # find all leaves of current level
-        Ds.append( sorted( [ x for x, deg in degree(graph_list[lvl], Vs[lvl]).items() if deg==1] ) )
+        Ds.append( set( [ x for x, deg in degree(graph_list[lvl], Vs[lvl]).items() if deg==1] ) )
         # check if leaves not empty
         if (len(Ds[lvl]) == 0) or (lvl == maxIter):
             break
         # continue if leaves present
         else:
             # define nodes and graphs of next level
-            Vs.append( sorted( [ x for x in Vs[lvl] if x not in Ds[lvl] ] ) )
+            Vs.append( Vs[lvl] - Ds[lvl] )
             graph_list.append( subgraph(graph_list[lvl], nbunch=Vs[lvl+1]))
+
+            # add leaves to non-root nodes
+            non_roots.update(Ds[lvl])
+
             # calculate further measures
             for x in Ds[lvl]:
-                # add leaves to non-root nodes
-                non_roots.append(x)
                 # add leaves to parent"s list of children
                 parents_dict[x] = neighbors(graph_list[lvl], x)[0]
                 children_dict[parents_dict[x]].append(x)
@@ -132,16 +134,17 @@ def full_node_classification(G):
     
     #### Identification of root nodes
     #determine all root nodes
-    roots = list( set( [ parents_dict[x] for x in non_roots if (parents_dict[x] not in non_roots) ] ) )
+    roots = set([ parents_dict[x] for x in non_roots]) - non_roots
+
     #determine branches and depth levels of roots
     for r in roots:
         # determine branch for roots
-        branch_dict[r] = branch(r,children_dict)
+        branch_dict[r] = branch(r, children_dict)
         # calculate depth of root
-        depth[r] = 1 + max( [ depth[x] for x in children_dict[r] ] )
+        depth[r] = 1 + max([ depth[x] for x in children_dict[r] ])
              
     #calculate branch sizes for all nodes
-    branch_sizes = { x:len(branch) for x,branch in branch_dict.items() }
+    branch_sizes = { x: len(branch) for x,branch in branch_dict.items() }
     
     #### Identification of heights (this implementation is still a bit clumsy)
     Hs = list()
@@ -168,13 +171,10 @@ def full_node_classification(G):
         i+=1
         
     #### Identification of non-Tree nodes
-    for v in Vs[0]:
-        if (v not in roots) and (v not in non_roots):
-            bulk.append(v)
-            
+    bulk = Vs[0] - roots - non_roots
     
     # return all determined values
-    return graph_list, non_roots, roots, bulk, branch_dict, children_dict, parents_dict, depth, height, branch_sizes
+    return graph_list, list(non_roots), list(roots), list(bulk), branch_dict, children_dict, parents_dict, depth, height, branch_sizes
 
 
 def node_categories(G, denseThres=5):
@@ -218,7 +218,7 @@ def node_categories(G, denseThres=5):
     
     return cat
 
-def TestNetwork(n=50, p=0.2):
+def TestNetwork(n=42, p=0.2):
     """
     
     Parameters
@@ -237,10 +237,10 @@ def TestNetwork(n=50, p=0.2):
     from networkx import random_geometric_graph, is_connected, get_node_attributes, minimum_spanning_tree
     import random
 
-    assert n >= 20
+    #assert n >= 20
 
     # fix random seed to obtain reproducable networks
-    random.seed(0)
+    random.seed(42)
 
     # generate connected random geometric graph Gtest
     while True:
@@ -253,7 +253,7 @@ def TestNetwork(n=50, p=0.2):
     Gmst = minimum_spanning_tree(Gtest)
 
     # add some arbitrary edge such that we have a cylce
-    Gmst.add_edge(0, 19)
+    Gmst.add_edge(0, Gmst.number_of_nodes() - 1)
 
     return Gmst
 
@@ -325,8 +325,8 @@ def plot_network(G, cat):
 
 
 if __name__ == "__main__":
-    G = TestNetwork(20)
-    cats = node_categories(G, denseThres=6)
+    G = TestNetwork(200)
+    cats = node_categories(G, denseThres=5)
     plot_network(G, cats)
     
 
