@@ -94,7 +94,7 @@ def full_node_classification(G):
 
 
     #### Identification of non-root nodes, parents, children, branches, and depths
-    graph_list.append( G.copy() )
+
     # list of nodes for each level
     Vs = list()
     Vs.append( set(G.nodes()) )
@@ -106,8 +106,12 @@ def full_node_classification(G):
     # iteration step    
     lvl = 0
     while True:
+        # induced subgraph
+        graph = subgraph(G, nbunch=Vs[lvl])
+
         # find all leaves of current level
-        Ds.append( set( [ x for x, deg in degree(graph_list[lvl], Vs[lvl]).items() if deg==1] ) )
+        Ds.append( set( [ x for x, deg in degree(graph, Vs[lvl]).items() if deg==1] ) )
+
         # check if leaves not empty
         if (len(Ds[lvl]) == 0) or (lvl == maxIter):
             break
@@ -115,7 +119,6 @@ def full_node_classification(G):
         else:
             # define nodes and graphs of next level
             Vs.append( Vs[lvl] - Ds[lvl] )
-            graph_list.append( subgraph(graph_list[lvl], nbunch=Vs[lvl+1]))
 
             # add leaves to non-root nodes
             non_roots.update(Ds[lvl])
@@ -123,10 +126,10 @@ def full_node_classification(G):
             # calculate further measures
             for x in Ds[lvl]:
                 # add leaves to parent"s list of children
-                parents_dict[x] = neighbors(graph_list[lvl], x)[0]
+                parents_dict[x] = neighbors(graph, x)[0]
                 children_dict[parents_dict[x]].append(x)
                 # determine branch for each removed leave
-                branch_dict[x] = branch(x,children_dict)
+                branch_dict[x] = branch(x, children_dict)
                 # save depth of each leave
                 depth[x] = lvl
             # increase level counter
@@ -144,7 +147,7 @@ def full_node_classification(G):
         depth[r] = 1 + max([ depth[x] for x in children_dict[r] ])
              
     #calculate branch sizes for all nodes
-    branch_sizes = { x: len(branch) for x,branch in branch_dict.items() }
+    branch_sizes = {x: len(branch) for x, branch in branch_dict.items()}
     
     #### Identification of heights (this implementation is still a bit clumsy)
     Hs = list()
@@ -174,7 +177,7 @@ def full_node_classification(G):
     bulk = Vs[0] - roots - non_roots
     
     # return all determined values
-    return graph_list, list(non_roots), list(roots), list(bulk), branch_dict, children_dict, parents_dict, depth, height, branch_sizes
+    return list(non_roots), list(roots), list(bulk), branch_dict, children_dict, parents_dict, depth, height, branch_sizes
 
 
 def node_categories(G, denseThres=5):
@@ -197,7 +200,7 @@ def node_categories(G, denseThres=5):
         
 
     """
-    Gs, N, R, X, B, C, p, delta, eta, beta = full_node_classification(G)
+    N, R, X, B, C, p, delta, eta, beta = full_node_classification(G)
     
     avndeg = average_neighbor_degree(G)
     cat = dict()
@@ -325,7 +328,7 @@ def plot_network(G, cat):
 
 
 if __name__ == "__main__":
-    G = TestNetwork(200)
+    G = TestNetwork(42)
     cats = node_categories(G, denseThres=5)
     plot_network(G, cats)
     
