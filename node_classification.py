@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jul 28 15:40:53 2016
 
-@author: jannitzbon
+@author: pschultz@pik-potsdam.de
 
-This is an implementation of a node classification algorithm which aims at
-systematically classifying nodes in  tree-like structures of networks.
+In collaboration with Jan Nitzbon (jan.nitzbon@awi.de) and Jobst Heitzig (heitzig@pik-potsdam.de).
+
+This is an implementation of a node classification algorithm which aims at identifying tree-shaped appendicas 
+of complex networks as well as at systematically classifying nodes in tree-like structures
+
+Related publication:.
 
 [1] Nitzbon, J., Schultz, P., Heitzig, J., Kurths, J., & Hellmann, F. (2017). 
         Deciphering the imprint of topology on nonlinear dynamical network stability. 
