@@ -151,7 +151,7 @@ def full_node_classification(G, debug=False):
         graph = subgraph(G, nbunch=nodes_per_level[lvl])
 
         # find all leaves of current level
-        leaves_per_level.append(set([x for x, deg in degree(graph, nodes_per_level[lvl]).items() if deg==1]))
+        leaves_per_level.append(set([x for x, deg in degree(graph, nodes_per_level[lvl]) if deg==1]))
 
         # check if leaves not empty
         if (len(leaves_per_level[lvl]) == 0) or (lvl == maxIter):
@@ -165,7 +165,7 @@ def full_node_classification(G, debug=False):
             tree_nodes.update(leaves_per_level[lvl])
 
             # update list of parents
-            parents_dict.update({x: neighbors(graph, x)[0] for x in leaves_per_level[lvl]})
+            parents_dict.update({x: [nei for nei in neighbors(graph, x)][0] for x in leaves_per_level[lvl]})
 
             for x in leaves_per_level[lvl]:
                 # add leaves to parent"s list of children
@@ -322,7 +322,7 @@ def plot_network(G, cat):
         }
         return ncd.get(cat[n], "white")
 
-    draw_networkx_nodes(G=G, pos=pos, ax=ax, node_color=[node_color(n) for n in G.nodes_iter()],
+    draw_networkx_nodes(G=G, pos=pos, ax=ax, node_color=[node_color(n) for n in G.nodes],
                                        node_shape="o", node_size=300, with_labels=False)
     draw_networkx_edges(G=G, pos=pos, ax=ax, width=2, edge_color="k", alpha=0.5)
 
