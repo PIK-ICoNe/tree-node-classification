@@ -1,5 +1,5 @@
-This is an implementation of a node classification algorithm which aims at identifying tree-shaped appendicas 
-of complex networks as well as at systematically classifying nodes in tree-like structures
+This is an implementation of a node classification algorithm which aims at identifying tree-shaped appendices 
+of complex networks as well as at systematically classifying nodes in tree-like structures.
 
 Related publication:
 
